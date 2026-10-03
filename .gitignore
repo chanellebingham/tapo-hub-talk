@@ -1,0 +1,10 @@
+# Working notes — NOT part of the publication
+CAPTIONS-for-chanelle.md
+
+# Never
+.env
+*.mp3
+*.wav
+*.ts
+__pycache__/
+*.pyc
