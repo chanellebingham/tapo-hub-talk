@@ -97,6 +97,7 @@ output and verified by experiment against hardware the author owns.
 import argparse
 import asyncio
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -157,8 +158,22 @@ def mux_all(alaw: bytes, pts_start: int):
 
 def to_alaw(src: str, ffmpeg: str) -> bytes:
     """Transcode any audio to raw G.711 A-law 8 kHz mono.
-    ffmpeg is used ONLY for this; its MPEG-TS output is rejected by the camera."""
-    r = subprocess.run([ffmpeg, "-hide_banner", "-v", "error", "-i", src,
+    ffmpeg is used ONLY for this; its MPEG-TS output is rejected by the camera.
+
+    Security note, since scanners flag the dynamic arguments here: this is a
+    list-form exec with no shell, so nothing in src or ffmpeg is interpreted
+    by a shell. Both values come from this tool's own command line — anyone
+    who can pass them is already running commands as themselves. The checks
+    below fail early with a clear error instead of handing a bad path to
+    CreateProcess/execvp, and refuse an ffmpeg that isn't actually there.
+    """
+    resolved = shutil.which(ffmpeg)
+    if resolved is None:
+        raise RuntimeError(
+            f"ffmpeg not found at {ffmpeg!r} — install it or pass --ffmpeg <path>")
+    if not os.path.isfile(src):
+        raise RuntimeError(f"audio file not found: {src!r}")
+    r = subprocess.run([resolved, "-hide_banner", "-v", "error", "-i", src,
                         "-ac", "1", "-ar", "8000", "-f", "alaw", "-"],
                        capture_output=True)
     if r.returncode != 0 or not r.stdout:
